@@ -1,12 +1,14 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"log"
 
 	"kasir-cafe/backend/internal/auth"
 	"kasir-cafe/backend/internal/config"
 	"kasir-cafe/backend/internal/db"
+	"kasir-cafe/backend/internal/repository"
 )
 
 func main() {
@@ -26,4 +28,12 @@ func main() {
 	}
 
 	log.Printf("cleanup revoked token selesai")
+
+	auditRepo := repository.NewAuthAuditRepository(database)
+	deleted, err := auditRepo.DeleteOlderThan(context.Background(), cfg.AuditRetentionDays)
+	if err != nil {
+		log.Fatalf("cleanup audit log: %v", err)
+	}
+
+	log.Printf("retention audit log selesai: %d baris dihapus (> %d hari)", deleted, cfg.AuditRetentionDays)
 }

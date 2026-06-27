@@ -2,9 +2,12 @@ package handler
 
 import (
 	"context"
+	"encoding/csv"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"kasir-cafe/backend/internal/domain"
 	"kasir-cafe/backend/internal/repository"
@@ -410,4 +413,54 @@ func (h *Handler) GetAuthAuditLogs(c *gin.Context) {
 
 	c.Header("X-Total-Count", strconv.Itoa(total))
 	c.JSON(http.StatusOK, logs)
+}
+
+func (h *Handler) ExportAuthAuditLogsCSV(c *gin.Context) {
+	logs, err := h.authAuditRepo.ListAll(c.Request.Context(), repository.AuthAuditFilter{
+		Event:    c.Query("event"),
+		Username: c.Query("username"),
+		DateFrom: c.Query("date_from"),
+		DateTo:   c.Query("date_to"),
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	filename := fmt.Sprintf("auth-audit-logs-%s.csv", time.Now().Format("20060102-150405"))
+	c.Header("Content-Type", "text/csv; charset=utf-8")
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
+
+	writer := csv.NewWriter(c.Writer)
+	defer writer.Flush()
+
+	_ = writer.Write([]string{"id", "event", "username", "role", "success", "ip_address", "user_agent", "detail", "created_at"})
+	for _, item := range logs {
+		_ = writer.Write([]string{
+			strconv.FormatInt(item.ID, 10),
+			item.Event,
+			item.Username,
+			item.Role,
+			strconv.FormatBool(item.Success),
+			item.IPAddress,
+			item.UserAgent,
+			item.Detail,
+			item.CreatedAt.Format(time.RFC3339),
+		})
+	}
+}
+
+func (h *Handler) GetAuthAuditSummary(c *gin.Context) {
+	days, _ := strconv.Atoi(c.DefaultQuery("days", "30"))
+	if days <= 0 {
+		days = 30
+	}
+
+	summary, err := h.authAuditRepo.Summary(c.Request.Context(), days)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, summary)
 }

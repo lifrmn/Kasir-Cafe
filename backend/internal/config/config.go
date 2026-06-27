@@ -1,11 +1,15 @@
 package config
 
-import "os"
+import (
+	"os"
+	"strconv"
+)
 
 type Config struct {
-	Port        string
-	DatabaseURL string
-	JWTSecret   string
+	Port               string
+	DatabaseURL        string
+	JWTSecret          string
+	AuditRetentionDays int
 }
 
 func Load() Config {
@@ -24,9 +28,17 @@ func Load() Config {
 		jwtSecret = "dev-secret"
 	}
 
+	auditRetentionDays := 180
+	if raw := os.Getenv("AUDIT_RETENTION_DAYS"); raw != "" {
+		if parsed, err := strconv.Atoi(raw); err == nil && parsed > 0 {
+			auditRetentionDays = parsed
+		}
+	}
+
 	return Config{
-		Port:        port,
-		DatabaseURL: databaseURL,
-		JWTSecret:   jwtSecret,
+		Port:               port,
+		DatabaseURL:        databaseURL,
+		JWTSecret:          jwtSecret,
+		AuditRetentionDays: auditRetentionDays,
 	}
 }

@@ -37,6 +37,11 @@ func main() {
 	if err := tokenStore.CleanupExpired(); err != nil {
 		log.Printf("cleanup revoked token startup warning: %v", err)
 	}
+	if deleted, err := authAuditRepo.DeleteOlderThan(context.Background(), cfg.AuditRetentionDays); err != nil {
+		log.Printf("retention audit log startup warning: %v", err)
+	} else if deleted > 0 {
+		log.Printf("retention audit log startup: %d baris dihapus (> %d hari)", deleted, cfg.AuditRetentionDays)
+	}
 
 	productService := service.NewProductService(productRepo)
 	transactionService := service.NewTransactionService(transactionRepo, productRepo)

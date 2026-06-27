@@ -39,6 +39,8 @@ func New(h *handler.Handler, authService service.AuthService) *gin.Engine {
 	adminOnly.DELETE("/produk/:id", h.DeleteProduct)
 	adminOnly.POST("/supplier", h.CreateSupplier)
 	adminOnly.GET("/admin/auth-audit-logs", h.GetAuthAuditLogs)
+	adminOnly.GET("/admin/auth-audit-logs/export", h.ExportAuthAuditLogsCSV)
+	adminOnly.GET("/admin/auth-audit-summary", h.GetAuthAuditSummary)
 
 	protected.GET("/produk", h.GetProducts)
 
