@@ -50,6 +50,48 @@ func (h *Handler) Login(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"token": token, "role": role})
 }
 
+func (h *Handler) RefreshToken(c *gin.Context) {
+	authorization := c.GetHeader("Authorization")
+	if !strings.HasPrefix(authorization, "Bearer ") {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "authorization bearer token wajib diisi"})
+		return
+	}
+
+	oldToken := strings.TrimSpace(strings.TrimPrefix(authorization, "Bearer "))
+	if oldToken == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "token tidak valid"})
+		return
+	}
+
+	newToken, err := h.authService.RefreshToken(oldToken)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"token": newToken})
+}
+
+func (h *Handler) Logout(c *gin.Context) {
+	authorization := c.GetHeader("Authorization")
+	if !strings.HasPrefix(authorization, "Bearer ") {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "authorization bearer token wajib diisi"})
+		return
+	}
+
+	token := strings.TrimSpace(strings.TrimPrefix(authorization, "Bearer "))
+	if token == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "token tidak valid"})
+		return
+	}
+
+	if err := h.authService.Logout(token); err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "logout berhasil"})
+}
+
 func (h *Handler) SeedAdmin(c *gin.Context) {
 	if err := h.authService.SeedDefaultAdmin(c.Request.Context()); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})

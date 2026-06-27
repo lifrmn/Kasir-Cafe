@@ -48,6 +48,8 @@ Dashboard default di `http://localhost:5173`.
 
 ## Contoh Endpoint API
 - `POST /login`
+- `POST /refresh-token` (Bearer token)
+- `POST /logout` (Bearer token)
 - `GET /produk`
 - `POST /produk`
 - `PUT /produk/:id`
@@ -73,3 +75,25 @@ ui/
 di/
 util/
 ```
+
+## RBAC Backend
+- `admin`: akses penuh, termasuk create/update/delete produk dan create supplier.
+- `kasir`: baca data, transaksi, laporan, stok, refresh token, logout.
+
+## Session Lifecycle Backend
+- Logout dan refresh token menyimpan token lama ke tabel `revoked_tokens` di PostgreSQL.
+- Revocation tidak hilang saat backend restart.
+- Cleanup token expired berjalan periodik otomatis (TTL berbasis `exp` claim JWT).
+
+## Jalankan End-to-End Sekali Jalan
+Pastikan Docker aktif, lalu:
+
+```
+./scripts/run-e2e.sh
+```
+
+Script akan:
+1. Menyalakan PostgreSQL dari `docker-compose.yml`.
+2. Menjalankan migration `backend/sql/schema.sql`.
+3. Menjalankan seed `backend/sql/seed.sql`.
+4. Menjalankan backend API di port `8080`.

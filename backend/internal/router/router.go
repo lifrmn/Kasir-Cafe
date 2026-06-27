@@ -29,18 +29,23 @@ func New(h *handler.Handler, authService service.AuthService) *gin.Engine {
 
 	protected := r.Group("/")
 	protected.Use(middleware.RequireAuth(authService))
+	protected.POST("/refresh-token", h.RefreshToken)
+	protected.POST("/logout", h.Logout)
+
+	adminOnly := protected.Group("/")
+	adminOnly.Use(middleware.RequireRoles("admin"))
+	adminOnly.POST("/produk", h.CreateProduct)
+	adminOnly.PUT("/produk/:id", h.UpdateProduct)
+	adminOnly.DELETE("/produk/:id", h.DeleteProduct)
+	adminOnly.POST("/supplier", h.CreateSupplier)
 
 	protected.GET("/produk", h.GetProducts)
-	protected.POST("/produk", h.CreateProduct)
-	protected.PUT("/produk/:id", h.UpdateProduct)
-	protected.DELETE("/produk/:id", h.DeleteProduct)
 
 	protected.GET("/transaksi", h.GetTransactions)
 	protected.POST("/transaksi", h.CreateTransaction)
 
 	protected.GET("/laporan", h.GetReport)
 	protected.GET("/stok", h.GetLowStock)
-	protected.POST("/supplier", h.CreateSupplier)
 
 	return r
 }

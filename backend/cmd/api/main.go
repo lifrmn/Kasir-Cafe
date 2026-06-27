@@ -4,7 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"log"
+	"time"
 
+	"kasir-cafe/backend/internal/auth"
 	"kasir-cafe/backend/internal/config"
 	"kasir-cafe/backend/internal/db"
 	"kasir-cafe/backend/internal/handler"
@@ -31,10 +33,23 @@ func main() {
 	productRepo := repository.NewProductRepository(database)
 	transactionRepo := repository.NewTransactionRepository(database)
 	userRepo := repository.NewUserRepository(database)
+	tokenStore := auth.NewPostgresTokenStore(database)
+	if err := tokenStore.CleanupExpired(); err != nil {
+		log.Printf("cleanup revoked token startup warning: %v", err)
+	}
+	go func() {
+		ticker := time.NewTicker(10 * time.Minute)
+		defer ticker.Stop()
+		for range ticker.C {
+			if err := tokenStore.CleanupExpired(); err != nil {
+				log.Printf("cleanup revoked token warning: %v", err)
+			}
+		}
+	}()
 
 	productService := service.NewProductService(productRepo)
 	transactionService := service.NewTransactionService(transactionRepo, productRepo)
-	authService := service.NewAuthService(userRepo, cfg.JWTSecret)
+	authService := service.NewAuthService(userRepo, cfg.JWTSecret, tokenStore)
 	if err := authService.SeedDefaultAdmin(context.Background()); err != nil {
 		log.Printf("seed default admin warning: %v", err)
 	}

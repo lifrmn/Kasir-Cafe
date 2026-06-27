@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.room.Room
 import com.kasircafe.pos.data.api.PosApiService
 import com.kasircafe.pos.data.database.AppDatabase
+import com.kasircafe.pos.data.local.SessionDataStore
+import com.kasircafe.pos.data.network.AuthInterceptor
 import com.kasircafe.pos.data.repository.AuthRepository
 import com.kasircafe.pos.data.repository.DashboardRepository
 import com.kasircafe.pos.data.repository.ProductRepository
@@ -32,7 +34,8 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideHttpClient(): OkHttpClient = OkHttpClient.Builder()
+    fun provideHttpClient(authInterceptor: AuthInterceptor): OkHttpClient = OkHttpClient.Builder()
+        .addInterceptor(authInterceptor)
         .addInterceptor(HttpLoggingInterceptor().setLevel(HttpLoggingInterceptor.Level.BASIC))
         .build()
 
@@ -66,8 +69,8 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideAuthRepository(api: PosApiService): AuthRepository =
-        AuthRepositoryImpl(api)
+    fun provideAuthRepository(api: PosApiService, sessionDataStore: SessionDataStore): AuthRepository =
+        AuthRepositoryImpl(api, sessionDataStore)
 
     @Provides
     @Singleton
