@@ -2,11 +2,13 @@ package router
 
 import (
 	"kasir-cafe/backend/internal/handler"
+	"kasir-cafe/backend/internal/middleware"
+	"kasir-cafe/backend/internal/service"
 
 	"github.com/gin-gonic/gin"
 )
 
-func New(h *handler.Handler) *gin.Engine {
+func New(h *handler.Handler, authService service.AuthService) *gin.Engine {
 	r := gin.Default()
 
 	r.Use(func(c *gin.Context) {
@@ -25,17 +27,20 @@ func New(h *handler.Handler) *gin.Engine {
 	r.POST("/login", h.Login)
 	r.POST("/seed-admin", h.SeedAdmin)
 
-	r.GET("/produk", h.GetProducts)
-	r.POST("/produk", h.CreateProduct)
-	r.PUT("/produk/:id", h.UpdateProduct)
-	r.DELETE("/produk/:id", h.DeleteProduct)
+	protected := r.Group("/")
+	protected.Use(middleware.RequireAuth(authService))
 
-	r.GET("/transaksi", h.GetTransactions)
-	r.POST("/transaksi", h.CreateTransaction)
+	protected.GET("/produk", h.GetProducts)
+	protected.POST("/produk", h.CreateProduct)
+	protected.PUT("/produk/:id", h.UpdateProduct)
+	protected.DELETE("/produk/:id", h.DeleteProduct)
 
-	r.GET("/laporan", h.GetReport)
-	r.GET("/stok", h.GetLowStock)
-	r.POST("/supplier", h.CreateSupplier)
+	protected.GET("/transaksi", h.GetTransactions)
+	protected.POST("/transaksi", h.CreateTransaction)
+
+	protected.GET("/laporan", h.GetReport)
+	protected.GET("/stok", h.GetLowStock)
+	protected.POST("/supplier", h.CreateSupplier)
 
 	return r
 }

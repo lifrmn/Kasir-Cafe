@@ -40,7 +40,7 @@ func main() {
 	}
 
 	h := handler.NewHandler(productService, transactionService, authService)
-	r := router.New(h)
+	r := router.New(h, authService)
 
 	log.Printf("API running on :%s", cfg.Port)
 	if err := r.Run(":" + cfg.Port); err != nil {

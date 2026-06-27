@@ -17,11 +17,24 @@ export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [form, setForm] = useState<Product>(emptyForm);
   const [error, setError] = useState("");
+  const [search, setSearch] = useState("");
+  const [kategori, setKategori] = useState("");
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(5);
+  const [total, setTotal] = useState(0);
 
   async function loadProducts() {
     try {
-      const response = await api.get<Product[]>("/produk");
+      const response = await api.get<Product[]>("/produk", {
+        params: {
+          search: search || undefined,
+          kategori: kategori || undefined,
+          page,
+          limit
+        }
+      });
       setProducts(response.data);
+      setTotal(Number(response.headers["x-total-count"] ?? 0));
     } catch {
       setError("Gagal memuat produk");
     }
@@ -29,7 +42,7 @@ export default function ProductsPage() {
 
   useEffect(() => {
     void loadProducts();
-  }, []);
+  }, [page, limit, search, kategori]);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -41,6 +54,7 @@ export default function ProductsPage() {
         await api.put(`/produk/${form.id}`, form);
       }
       setForm(emptyForm);
+      setPage(1);
       await loadProducts();
     } catch {
       setError("Gagal menyimpan produk");
@@ -61,6 +75,36 @@ export default function ProductsPage() {
       <div className="table-head">
         <h2>Produk</h2>
         <button type="button" onClick={() => setForm(emptyForm)}>Form Baru</button>
+      </div>
+
+      <div className="toolbar-grid">
+        <input
+          placeholder="Cari nama/barcode"
+          value={search}
+          onChange={(event) => {
+            setSearch(event.target.value);
+            setPage(1);
+          }}
+        />
+        <input
+          placeholder="Filter kategori"
+          value={kategori}
+          onChange={(event) => {
+            setKategori(event.target.value);
+            setPage(1);
+          }}
+        />
+        <select
+          value={limit}
+          onChange={(event) => {
+            setLimit(Number(event.target.value));
+            setPage(1);
+          }}
+        >
+          <option value={5}>5 / halaman</option>
+          <option value={10}>10 / halaman</option>
+          <option value={20}>20 / halaman</option>
+        </select>
       </div>
 
       <form className="form-grid" onSubmit={handleSubmit}>
@@ -135,6 +179,18 @@ export default function ProductsPage() {
           ))}
         </tbody>
       </table>
+
+      <div className="pager-row">
+        <button type="button" onClick={() => setPage((p) => Math.max(1, p - 1))}>Sebelumnya</button>
+        <p>Halaman {page} dari {Math.max(1, Math.ceil(total / limit))}</p>
+        <button
+          type="button"
+          onClick={() => setPage((p) => p + 1)}
+          disabled={page >= Math.ceil(total / limit)}
+        >
+          Berikutnya
+        </button>
+      </div>
     </section>
   );
 }

@@ -15,15 +15,31 @@ export default function CashierPage() {
   const [diskon, setDiskon] = useState(0);
   const [pajak, setPajak] = useState(0);
   const [error, setError] = useState("");
+  const [productSearch, setProductSearch] = useState("");
+  const [txSearch, setTxSearch] = useState("");
+  const [txMetode, setTxMetode] = useState("");
+  const [txPage, setTxPage] = useState(1);
+  const [txLimit, setTxLimit] = useState(5);
+  const [txTotal, setTxTotal] = useState(0);
 
   async function loadData() {
     try {
       const [productsRes, txRes] = await Promise.all([
-        api.get<Product[]>("/produk"),
-        api.get<Transaction[]>("/transaksi")
+        api.get<Product[]>("/produk", {
+          params: { search: productSearch || undefined }
+        }),
+        api.get<Transaction[]>("/transaksi", {
+          params: {
+            search: txSearch || undefined,
+            metode: txMetode || undefined,
+            page: txPage,
+            limit: txLimit
+          }
+        })
       ]);
       setProducts(productsRes.data);
       setTransactions(txRes.data);
+      setTxTotal(Number(txRes.headers["x-total-count"] ?? 0));
     } catch {
       setError("Gagal memuat data kasir");
     }
@@ -31,7 +47,7 @@ export default function CashierPage() {
 
   useEffect(() => {
     void loadData();
-  }, []);
+  }, [productSearch, txSearch, txMetode, txPage, txLimit]);
 
   const total = useMemo(
     () => cart.reduce((sum, item) => sum + item.product.harga_jual * item.qty, 0),
@@ -112,6 +128,11 @@ export default function CashierPage() {
       </div>
 
       <h3>Daftar Produk</h3>
+      <input
+        placeholder="Cari produk"
+        value={productSearch}
+        onChange={(event) => setProductSearch(event.target.value)}
+      />
       <div className="quick-actions">
         {products.map((product) => (
           <button key={product.id} type="button" onClick={() => addToCart(product)}>
@@ -130,6 +151,40 @@ export default function CashierPage() {
       </ul>
 
       <h3>Riwayat Transaksi</h3>
+      <div className="toolbar-grid">
+        <input
+          placeholder="Cari kasir/metode"
+          value={txSearch}
+          onChange={(event) => {
+            setTxSearch(event.target.value);
+            setTxPage(1);
+          }}
+        />
+        <select
+          value={txMetode}
+          onChange={(event) => {
+            setTxMetode(event.target.value);
+            setTxPage(1);
+          }}
+        >
+          <option value="">Semua Metode</option>
+          <option value="Tunai">Tunai</option>
+          <option value="QRIS">QRIS</option>
+          <option value="Transfer">Transfer</option>
+          <option value="Kartu">Kartu</option>
+        </select>
+        <select
+          value={txLimit}
+          onChange={(event) => {
+            setTxLimit(Number(event.target.value));
+            setTxPage(1);
+          }}
+        >
+          <option value={5}>5 / halaman</option>
+          <option value={10}>10 / halaman</option>
+          <option value={20}>20 / halaman</option>
+        </select>
+      </div>
       <ul>
         {transactions.map((tx) => (
           <li key={tx.id}>
@@ -137,6 +192,17 @@ export default function CashierPage() {
           </li>
         ))}
       </ul>
+      <div className="pager-row">
+        <button type="button" onClick={() => setTxPage((p) => Math.max(1, p - 1))}>Sebelumnya</button>
+        <p>Halaman {txPage} dari {Math.max(1, Math.ceil(txTotal / txLimit))}</p>
+        <button
+          type="button"
+          onClick={() => setTxPage((p) => p + 1)}
+          disabled={txPage >= Math.ceil(txTotal / txLimit)}
+        >
+          Berikutnya
+        </button>
+      </div>
     </section>
   );
 }

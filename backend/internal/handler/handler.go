@@ -3,6 +3,7 @@ package handler
 import (
 	"net/http"
 	"strconv"
+	"strings"
 
 	"kasir-cafe/backend/internal/domain"
 	"kasir-cafe/backend/internal/service"
@@ -65,7 +66,42 @@ func (h *Handler) GetProducts(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, products)
+	search := strings.ToLower(strings.TrimSpace(c.Query("search")))
+	kategori := strings.ToLower(strings.TrimSpace(c.Query("kategori")))
+	filtered := make([]domain.Product, 0, len(products))
+	for _, product := range products {
+		if search != "" {
+			if !strings.Contains(strings.ToLower(product.Nama), search) && !strings.Contains(strings.ToLower(product.Barcode), search) {
+				continue
+			}
+		}
+		if kategori != "" && strings.ToLower(product.Kategori) != kategori {
+			continue
+		}
+		filtered = append(filtered, product)
+	}
+
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "0"))
+	if page < 1 {
+		page = 1
+	}
+	c.Header("X-Total-Count", strconv.Itoa(len(filtered)))
+	if limit > 0 {
+		start := (page - 1) * limit
+		if start >= len(filtered) {
+			c.JSON(http.StatusOK, []domain.Product{})
+			return
+		}
+		end := start + limit
+		if end > len(filtered) {
+			end = len(filtered)
+		}
+		c.JSON(http.StatusOK, filtered[start:end])
+		return
+	}
+
+	c.JSON(http.StatusOK, filtered)
 }
 
 func (h *Handler) CreateProduct(c *gin.Context) {
@@ -138,7 +174,42 @@ func (h *Handler) GetTransactions(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, transactions)
+	search := strings.ToLower(strings.TrimSpace(c.Query("search")))
+	metode := strings.ToLower(strings.TrimSpace(c.Query("metode")))
+	filtered := make([]domain.Transaction, 0, len(transactions))
+	for _, tx := range transactions {
+		if search != "" {
+			if !strings.Contains(strings.ToLower(tx.Kasir), search) && !strings.Contains(strings.ToLower(tx.MetodePembayaran), search) {
+				continue
+			}
+		}
+		if metode != "" && strings.ToLower(tx.MetodePembayaran) != metode {
+			continue
+		}
+		filtered = append(filtered, tx)
+	}
+
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "0"))
+	if page < 1 {
+		page = 1
+	}
+	c.Header("X-Total-Count", strconv.Itoa(len(filtered)))
+	if limit > 0 {
+		start := (page - 1) * limit
+		if start >= len(filtered) {
+			c.JSON(http.StatusOK, []domain.Transaction{})
+			return
+		}
+		end := start + limit
+		if end > len(filtered) {
+			end = len(filtered)
+		}
+		c.JSON(http.StatusOK, filtered[start:end])
+		return
+	}
+
+	c.JSON(http.StatusOK, filtered)
 }
 
 func (h *Handler) CreateTransaction(c *gin.Context) {

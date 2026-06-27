@@ -4,9 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 	"kasir-cafe/backend/internal/repository"
 )
@@ -14,6 +14,7 @@ import (
 type AuthService interface {
 	Login(ctx context.Context, username string, password string) (string, string, error)
 	SeedDefaultAdmin(ctx context.Context) error
+	ValidateToken(token string) (string, string, error)
 }
 
 type authService struct {
@@ -38,11 +39,47 @@ func (s *authService) Login(ctx context.Context, username string, password strin
 		return "", "", errors.New("username atau password salah")
 	}
 
-	// Token format sengaja sederhana untuk starter project.
-	token := fmt.Sprintf("%s:%s:%d", user.Username, s.jwtSecret, time.Now().Unix())
-	return token, user.Role, nil
+	claims := jwt.MapClaims{
+		"sub":  user.Username,
+		"role": user.Role,
+		"iat":  time.Now().Unix(),
+		"exp":  time.Now().Add(24 * time.Hour).Unix(),
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	signed, err := token.SignedString([]byte(s.jwtSecret))
+	if err != nil {
+		return "", "", err
+	}
+
+	return signed, user.Role, nil
 }
 
 func (s *authService) SeedDefaultAdmin(ctx context.Context) error {
 	return s.userRepo.SeedDefaultAdmin(ctx)
+}
+
+func (s *authService) ValidateToken(token string) (string, string, error) {
+	parsed, err := jwt.Parse(token, func(t *jwt.Token) (interface{}, error) {
+		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, errors.New("metode signing token tidak valid")
+		}
+		return []byte(s.jwtSecret), nil
+	})
+	if err != nil || !parsed.Valid {
+		return "", "", errors.New("token tidak valid")
+	}
+
+	claims, ok := parsed.Claims.(jwt.MapClaims)
+	if !ok {
+		return "", "", errors.New("claims token tidak valid")
+	}
+
+	username, _ := claims["sub"].(string)
+	role, _ := claims["role"].(string)
+	if username == "" || role == "" {
+		return "", "", errors.New("token tidak valid")
+	}
+
+	return username, role, nil
 }
