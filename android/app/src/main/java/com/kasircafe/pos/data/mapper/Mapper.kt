@@ -1,11 +1,16 @@
 package com.kasircafe.pos.data.mapper
 
+import com.kasircafe.pos.data.api.model.AuthAuditSummaryDto
 import com.kasircafe.pos.data.api.model.ProductDto
 import com.kasircafe.pos.data.api.model.TransactionDetailDto
 import com.kasircafe.pos.data.api.model.TransactionDto
 import com.kasircafe.pos.data.database.entity.ProductEntity
+import com.kasircafe.pos.data.database.entity.TransactionDetailEntity
 import com.kasircafe.pos.data.database.entity.TransactionEntity
+import com.kasircafe.pos.domain.model.AuditSummary
+import com.kasircafe.pos.domain.model.FailedLoginPerDay
 import com.kasircafe.pos.domain.model.Product
+import com.kasircafe.pos.domain.model.TopIpAddress
 import com.kasircafe.pos.domain.model.Transaction
 import com.kasircafe.pos.domain.model.TransactionDetail
 
@@ -91,4 +96,36 @@ fun TransactionDetail.toDto(): TransactionDetailDto = TransactionDetailDto(
     jumlah = jumlah,
     harga = harga,
     subtotal = subtotal
+)
+
+fun TransactionDetailDto.toDomain(): TransactionDetail = TransactionDetail(
+    produkId = produk_id,
+    jumlah = jumlah,
+    harga = harga,
+    subtotal = subtotal
+)
+
+fun TransactionDetailEntity.toDomain(): TransactionDetail = TransactionDetail(
+    produkId = produkId,
+    jumlah = jumlah,
+    harga = harga,
+    subtotal = subtotal
+)
+
+fun TransactionDetail.toEntity(transactionId: Long): TransactionDetailEntity = TransactionDetailEntity(
+    transactionId = transactionId,
+    produkId = produkId,
+    jumlah = jumlah,
+    harga = harga,
+    subtotal = subtotal
+)
+
+fun AuthAuditSummaryDto.toDomain(): AuditSummary = AuditSummary(
+    totalEvents = total_events,
+    totalLogin = total_login,
+    totalFailedLogin = total_failed_login,
+    totalLogout = total_logout,
+    totalRefresh = total_refresh,
+    failedLoginPerDay = failed_login_per_day.map { FailedLoginPerDay(day = it.day, total = it.total) },
+    topIpAddresses = top_ip_addresses.map { TopIpAddress(ipAddress = it.ip_address, total = it.total) }
 )

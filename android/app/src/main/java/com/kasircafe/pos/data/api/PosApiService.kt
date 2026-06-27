@@ -1,5 +1,6 @@
 package com.kasircafe.pos.data.api
 
+import com.kasircafe.pos.data.api.model.AuthAuditSummaryDto
 import com.kasircafe.pos.data.api.model.LoginRequest
 import com.kasircafe.pos.data.api.model.LoginResponse
 import com.kasircafe.pos.data.api.model.ProductDto
@@ -12,6 +13,7 @@ import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.PUT
 import retrofit2.http.Path
+import retrofit2.http.Query
 
 interface PosApiService {
     @POST("/login")
@@ -37,4 +39,7 @@ interface PosApiService {
 
     @GET("/laporan")
     suspend fun getReport(): ReportResponse
+
+    @GET("/admin/auth-audit-summary")
+    suspend fun getAuthAuditSummary(@Query("days") days: Int = 30): AuthAuditSummaryDto
 }

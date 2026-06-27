@@ -61,3 +61,23 @@ data class ReportResponse(
     val bulanan: ReportPeriodDto,
     val tahunan: ReportPeriodDto
 )
+
+data class FailedLoginPerDayDto(
+    val day: String = "",
+    val total: Int = 0
+)
+
+data class TopIpAddressDto(
+    val ip_address: String = "",
+    val total: Int = 0
+)
+
+data class AuthAuditSummaryDto(
+    val total_events: Int = 0,
+    val total_login: Int = 0,
+    val total_failed_login: Int = 0,
+    val total_logout: Int = 0,
+    val total_refresh: Int = 0,
+    val failed_login_per_day: List<FailedLoginPerDayDto> = emptyList(),
+    val top_ip_addresses: List<TopIpAddressDto> = emptyList()
+)

@@ -20,6 +20,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 fun DashboardScreen(
     onOpenProducts: () -> Unit,
     onOpenCashier: () -> Unit,
+    onOpenAudit: () -> Unit,
     viewModel: DashboardViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -41,6 +42,11 @@ fun DashboardScreen(
         }
         Button(onClick = onOpenCashier, modifier = Modifier.fillMaxWidth()) {
             Text("Buka Kasir")
+        }
+        if (state.isAdmin) {
+            Button(onClick = onOpenAudit, modifier = Modifier.fillMaxWidth()) {
+                Text("Observability Auth")
+            }
         }
 
         if (state.error.isNotBlank()) {

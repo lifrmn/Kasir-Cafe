@@ -7,13 +7,17 @@ import com.kasircafe.pos.data.database.AppDatabase
 import com.kasircafe.pos.data.local.SessionDataStore
 import com.kasircafe.pos.data.network.AuthInterceptor
 import com.kasircafe.pos.data.repository.AuthRepository
+import com.kasircafe.pos.data.repository.AuditRepository
 import com.kasircafe.pos.data.repository.DashboardRepository
 import com.kasircafe.pos.data.repository.ProductRepository
 import com.kasircafe.pos.data.repository.TransactionRepository
 import com.kasircafe.pos.data.repository.impl.AuthRepositoryImpl
+import com.kasircafe.pos.data.repository.impl.AuditRepositoryImpl
 import com.kasircafe.pos.data.repository.impl.DashboardRepositoryImpl
 import com.kasircafe.pos.data.repository.impl.ProductRepositoryImpl
 import com.kasircafe.pos.data.repository.impl.TransactionRepositoryImpl
+import com.squareup.moshi.Moshi
+import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -34,6 +38,12 @@ object AppModule {
 
     @Provides
     @Singleton
+    fun provideMoshi(): Moshi = Moshi.Builder()
+        .add(KotlinJsonAdapterFactory())
+        .build()
+
+    @Provides
+    @Singleton
     fun provideHttpClient(authInterceptor: AuthInterceptor): OkHttpClient = OkHttpClient.Builder()
         .addInterceptor(authInterceptor)
         .addInterceptor(HttpLoggingInterceptor().setLevel(HttpLoggingInterceptor.Level.BASIC))
@@ -41,10 +51,10 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideRetrofit(baseUrl: String, client: OkHttpClient): Retrofit = Retrofit.Builder()
+    fun provideRetrofit(baseUrl: String, client: OkHttpClient, moshi: Moshi): Retrofit = Retrofit.Builder()
         .baseUrl(baseUrl)
         .client(client)
-        .addConverterFactory(MoshiConverterFactory.create())
+        .addConverterFactory(MoshiConverterFactory.create(moshi))
         .build()
 
     @Provides
@@ -54,13 +64,18 @@ object AppModule {
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): AppDatabase =
-        Room.databaseBuilder(context, AppDatabase::class.java, "kasir_cafe.db").build()
+        Room.databaseBuilder(context, AppDatabase::class.java, "kasir_cafe.db")
+            .fallbackToDestructiveMigration()
+            .build()
 
     @Provides
     fun provideProductDao(db: AppDatabase) = db.productDao()
 
     @Provides
     fun provideTransactionDao(db: AppDatabase) = db.transactionDao()
+
+    @Provides
+    fun providePendingTransactionDao(db: AppDatabase) = db.pendingTransactionDao()
 
     @Provides
     @Singleton
@@ -79,6 +94,16 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideTransactionRepository(api: PosApiService, db: AppDatabase): TransactionRepository =
-        TransactionRepositoryImpl(api = api, dao = db.transactionDao())
+    fun provideAuditRepository(api: PosApiService): AuditRepository =
+        AuditRepositoryImpl(api)
+
+    @Provides
+    @Singleton
+    fun provideTransactionRepository(api: PosApiService, db: AppDatabase, moshi: Moshi): TransactionRepository =
+        TransactionRepositoryImpl(
+            api = api,
+            dao = db.transactionDao(),
+            pendingDao = db.pendingTransactionDao(),
+            moshi = moshi
+        )
 }

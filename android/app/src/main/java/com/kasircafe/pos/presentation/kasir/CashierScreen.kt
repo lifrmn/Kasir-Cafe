@@ -24,6 +24,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 fun CashierScreen(viewModel: CashierViewModel = hiltViewModel()) {
     val products by viewModel.products.collectAsStateWithLifecycle()
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val pendingCount by viewModel.pendingCount.collectAsStateWithLifecycle()
     val total = state.cart.sumOf { it.product.hargaJual * it.qty }
     val grandTotal = total - state.discount + state.tax
 
@@ -34,6 +35,18 @@ fun CashierScreen(viewModel: CashierViewModel = hiltViewModel()) {
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Text("Kasir", style = MaterialTheme.typography.headlineMedium)
+
+        if (pendingCount > 0) {
+            Card {
+                Text(
+                    "$pendingCount transaksi menunggu sinkronisasi (offline)",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
+        }
 
         OutlinedTextField(
             value = state.discount.toString(),

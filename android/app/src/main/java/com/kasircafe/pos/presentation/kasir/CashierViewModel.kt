@@ -2,10 +2,12 @@ package com.kasircafe.pos.presentation.kasir
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.kasircafe.pos.data.repository.ProductRepository
-import com.kasircafe.pos.data.repository.TransactionRepository
 import com.kasircafe.pos.domain.model.Product
 import com.kasircafe.pos.domain.model.TransactionDetail
+import com.kasircafe.pos.domain.usecase.CreateTransactionUseCase
+import com.kasircafe.pos.domain.usecase.GetProductsUseCase
+import com.kasircafe.pos.domain.usecase.ObservePendingTransactionsUseCase
+import com.kasircafe.pos.domain.usecase.RefreshTransactionsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -33,13 +35,21 @@ data class CashierUiState(
 
 @HiltViewModel
 class CashierViewModel @Inject constructor(
-    productRepository: ProductRepository,
-    private val transactionRepository: TransactionRepository
+    getProducts: GetProductsUseCase,
+    observePendingTransactions: ObservePendingTransactionsUseCase,
+    private val createTransaction: CreateTransactionUseCase,
+    private val refreshTransactionsUseCase: RefreshTransactionsUseCase
 ) : ViewModel() {
-    val products = productRepository.observeProducts().stateIn(
+    val products = getProducts().stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = emptyList()
+    )
+
+    val pendingCount = observePendingTransactions().stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = 0
     )
 
     private val _uiState = MutableStateFlow(CashierUiState())
@@ -77,7 +87,7 @@ class CashierViewModel @Inject constructor(
 
     private fun refreshTransactions() {
         viewModelScope.launch {
-            transactionRepository.refreshTransactions()
+            refreshTransactionsUseCase()
         }
     }
 
@@ -94,7 +104,7 @@ class CashierViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = "", message = "") }
             runCatching {
-                transactionRepository.createTransaction(
+                createTransaction(
                     total = total,
                     diskon = state.discount,
                     pajak = state.tax,
@@ -110,8 +120,13 @@ class CashierViewModel @Inject constructor(
                         )
                     }
                 )
-            }.onSuccess {
-                _uiState.update { it.copy(isLoading = false, cart = emptyList(), message = "Transaksi berhasil", error = "") }
+            }.onSuccess { online ->
+                val info = if (online) {
+                    "Transaksi berhasil"
+                } else {
+                    "Koneksi gagal. Transaksi disimpan offline dan akan disinkronkan otomatis."
+                }
+                _uiState.update { it.copy(isLoading = false, cart = emptyList(), message = info, error = "") }
                 refreshTransactions()
             }.onFailure { throwable ->
                 _uiState.update {
