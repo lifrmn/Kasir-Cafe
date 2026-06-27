@@ -44,3 +44,23 @@ export type AuthAuditLog = {
   detail: string;
   created_at: string;
 };
+
+export type AuthAuditDailyFailedLogin = {
+  day: string;
+  total: number;
+};
+
+export type AuthAuditTopIP = {
+  ip_address: string;
+  total: number;
+};
+
+export type AuthAuditSummary = {
+  total_events: number;
+  total_login: number;
+  total_failed_login: number;
+  total_logout: number;
+  total_refresh: number;
+  failed_login_per_day: AuthAuditDailyFailedLogin[];
+  top_ip_addresses: AuthAuditTopIP[];
+};
