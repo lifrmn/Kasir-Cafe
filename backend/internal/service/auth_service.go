@@ -2,7 +2,9 @@ package service
 
 import (
 	"context"
+	"crypto/rand"
 	"database/sql"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"time"
@@ -49,6 +51,7 @@ func (s *authService) Login(ctx context.Context, username string, password strin
 		"role": user.Role,
 		"iat":  time.Now().Unix(),
 		"exp":  time.Now().Add(24 * time.Hour).Unix(),
+		"jti":  randomTokenID(),
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
@@ -108,6 +111,7 @@ func (s *authService) RefreshToken(token string) (string, error) {
 		"role": role,
 		"iat":  time.Now().Unix(),
 		"exp":  time.Now().Add(24 * time.Hour).Unix(),
+		"jti":  randomTokenID(),
 	}
 
 	newToken := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
@@ -120,6 +124,14 @@ func (s *authService) RefreshToken(token string) (string, error) {
 		return "", fmt.Errorf("gagal revoke token lama: %w", err)
 	}
 	return signed, nil
+}
+
+func randomTokenID() string {
+	b := make([]byte, 16)
+	if _, err := rand.Read(b); err != nil {
+		return fmt.Sprintf("fallback-%d", time.Now().UnixNano())
+	}
+	return hex.EncodeToString(b)
 }
 
 func (s *authService) Logout(token string) error {

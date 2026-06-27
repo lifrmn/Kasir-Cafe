@@ -9,14 +9,14 @@ import (
 )
 
 type AuthAuditLog struct {
-	ID        int64 `json:"id"`
-	Event     string
-	Username  string
-	Role      string
-	Success   bool
-	IPAddress string
-	UserAgent string
-	Detail    string
+	ID        int64     `json:"id"`
+	Event     string    `json:"event"`
+	Username  string    `json:"username"`
+	Role      string    `json:"role"`
+	Success   bool      `json:"success"`
+	IPAddress string    `json:"ip_address"`
+	UserAgent string    `json:"user_agent"`
+	Detail    string    `json:"detail"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
