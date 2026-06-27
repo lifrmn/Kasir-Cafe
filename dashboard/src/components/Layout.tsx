@@ -9,7 +9,8 @@ export default function Layout({ children }: PropsWithChildren) {
   const links = [
     { to: "/dashboard", label: "Dashboard" },
     { to: "/produk", label: "Produk" },
-    { to: "/kasir", label: "Kasir" }
+    { to: "/kasir", label: "Kasir" },
+    ...(auth?.role === "admin" ? [{ to: "/audit", label: "Audit Auth" }] : [])
   ];
 
   return (
@@ -32,7 +33,7 @@ export default function Layout({ children }: PropsWithChildren) {
               </Link>
             ))}
           </nav>
-          <button type="button" onClick={logout}>Logout</button>
+          <button type="button" onClick={() => void logout()}>Logout</button>
         </div>
       </header>
       <main className="app-main">{children}</main>

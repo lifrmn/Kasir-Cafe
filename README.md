@@ -59,6 +59,7 @@ Dashboard default di `http://localhost:5173`.
 - `GET /laporan`
 - `GET /stok`
 - `POST /supplier`
+- `GET /admin/auth-audit-logs` (admin, filter: `event`, `username`, `date_from`, `date_to`, `page`, `limit`)
 
 ## Catatan Arsitektur Android
 ```
@@ -83,7 +84,34 @@ util/
 ## Session Lifecycle Backend
 - Logout dan refresh token menyimpan token lama ke tabel `revoked_tokens` di PostgreSQL.
 - Revocation tidak hilang saat backend restart.
-- Cleanup token expired berjalan periodik otomatis (TTL berbasis `exp` claim JWT).
+- Cleanup token expired memakai job terpisah (production-friendly): scheduler external/pg_cron.
+
+## Cleanup Job (Production)
+### Opsi 1: Cron/Scheduler eksternal
+Jalankan job one-shot:
+
+```
+./scripts/run-cleanup-job.sh
+```
+
+Contoh cron setiap 10 menit:
+
+```
+*/10 * * * * cd /workspaces/Kasir-Cafe && ./scripts/run-cleanup-job.sh >> /tmp/kasir-cleanup.log 2>&1
+```
+
+### Opsi 2: pg_cron (jika tersedia)
+Jalankan SQL setup:
+
+```
+psql -U postgres -d kasir_cafe -f backend/sql/pg_cron_setup.sql
+```
+
+File: `backend/sql/pg_cron_setup.sql`.
+
+## Audit Log Auth
+Event auth `login`, `refresh`, `logout` (berhasil/gagal) dicatat ke tabel `auth_audit_logs`.
+Kolom penting: `username`, `role`, `success`, `ip_address`, `user_agent`, `detail`, `created_at`.
 
 ## Jalankan End-to-End Sekali Jalan
 Pastikan Docker aktif, lalu:

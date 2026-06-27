@@ -61,3 +61,21 @@ CREATE TABLE IF NOT EXISTS revoked_tokens (
 
 CREATE INDEX IF NOT EXISTS idx_revoked_tokens_expires_at
 ON revoked_tokens (expires_at);
+
+CREATE TABLE IF NOT EXISTS auth_audit_logs (
+    id BIGSERIAL PRIMARY KEY,
+    event TEXT NOT NULL CHECK (event IN ('login', 'refresh', 'logout')),
+    username TEXT,
+    role TEXT,
+    success BOOLEAN NOT NULL,
+    ip_address TEXT,
+    user_agent TEXT,
+    detail TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_auth_audit_logs_created_at
+ON auth_audit_logs (created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_auth_audit_logs_username
+ON auth_audit_logs (username);

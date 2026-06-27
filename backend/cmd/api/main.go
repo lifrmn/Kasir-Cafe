@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"log"
-	"time"
 
 	"kasir-cafe/backend/internal/auth"
 	"kasir-cafe/backend/internal/config"
@@ -33,19 +32,11 @@ func main() {
 	productRepo := repository.NewProductRepository(database)
 	transactionRepo := repository.NewTransactionRepository(database)
 	userRepo := repository.NewUserRepository(database)
+	authAuditRepo := repository.NewAuthAuditRepository(database)
 	tokenStore := auth.NewPostgresTokenStore(database)
 	if err := tokenStore.CleanupExpired(); err != nil {
 		log.Printf("cleanup revoked token startup warning: %v", err)
 	}
-	go func() {
-		ticker := time.NewTicker(10 * time.Minute)
-		defer ticker.Stop()
-		for range ticker.C {
-			if err := tokenStore.CleanupExpired(); err != nil {
-				log.Printf("cleanup revoked token warning: %v", err)
-			}
-		}
-	}()
 
 	productService := service.NewProductService(productRepo)
 	transactionService := service.NewTransactionService(transactionRepo, productRepo)
@@ -54,7 +45,7 @@ func main() {
 		log.Printf("seed default admin warning: %v", err)
 	}
 
-	h := handler.NewHandler(productService, transactionService, authService)
+	h := handler.NewHandler(productService, transactionService, authService, authAuditRepo)
 	r := router.New(h, authService)
 
 	log.Printf("API running on :%s", cfg.Port)

@@ -1,11 +1,13 @@
 package handler
 
 import (
+	"context"
 	"net/http"
 	"strconv"
 	"strings"
 
 	"kasir-cafe/backend/internal/domain"
+	"kasir-cafe/backend/internal/repository"
 	"kasir-cafe/backend/internal/service"
 
 	"github.com/gin-gonic/gin"
@@ -15,17 +17,20 @@ type Handler struct {
 	productService     service.ProductService
 	transactionService service.TransactionService
 	authService        service.AuthService
+	authAuditRepo      repository.AuthAuditRepository
 }
 
 func NewHandler(
 	productService service.ProductService,
 	transactionService service.TransactionService,
 	authService service.AuthService,
+	authAuditRepo repository.AuthAuditRepository,
 ) *Handler {
 	return &Handler{
 		productService:     productService,
 		transactionService: transactionService,
 		authService:        authService,
+		authAuditRepo:      authAuditRepo,
 	}
 }
 
@@ -37,15 +42,41 @@ type loginRequest struct {
 func (h *Handler) Login(c *gin.Context) {
 	var req loginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
+		h.recordAuthEvent(c.Request.Context(), c, repository.AuthAuditLog{
+			Event:     "login",
+			Username:  req.Username,
+			Success:   false,
+			Detail:    err.Error(),
+			IPAddress: c.ClientIP(),
+			UserAgent: c.GetHeader("User-Agent"),
+		})
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	token, role, err := h.authService.Login(c.Request.Context(), req.Username, req.Password)
 	if err != nil {
+		h.recordAuthEvent(c.Request.Context(), c, repository.AuthAuditLog{
+			Event:     "login",
+			Username:  req.Username,
+			Success:   false,
+			Detail:    err.Error(),
+			IPAddress: c.ClientIP(),
+			UserAgent: c.GetHeader("User-Agent"),
+		})
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
+
+	h.recordAuthEvent(c.Request.Context(), c, repository.AuthAuditLog{
+		Event:     "login",
+		Username:  req.Username,
+		Role:      role,
+		Success:   true,
+		Detail:    "login berhasil",
+		IPAddress: c.ClientIP(),
+		UserAgent: c.GetHeader("User-Agent"),
+	})
 
 	c.JSON(http.StatusOK, gin.H{"token": token, "role": role})
 }
@@ -65,9 +96,28 @@ func (h *Handler) RefreshToken(c *gin.Context) {
 
 	newToken, err := h.authService.RefreshToken(oldToken)
 	if err != nil {
+		h.recordAuthEvent(c.Request.Context(), c, repository.AuthAuditLog{
+			Event:     "refresh",
+			Username:  getContextString(c, "username"),
+			Role:      getContextString(c, "role"),
+			Success:   false,
+			Detail:    err.Error(),
+			IPAddress: c.ClientIP(),
+			UserAgent: c.GetHeader("User-Agent"),
+		})
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
+
+	h.recordAuthEvent(c.Request.Context(), c, repository.AuthAuditLog{
+		Event:     "refresh",
+		Username:  getContextString(c, "username"),
+		Role:      getContextString(c, "role"),
+		Success:   true,
+		Detail:    "refresh token berhasil",
+		IPAddress: c.ClientIP(),
+		UserAgent: c.GetHeader("User-Agent"),
+	})
 
 	c.JSON(http.StatusOK, gin.H{"token": newToken})
 }
@@ -86,10 +136,45 @@ func (h *Handler) Logout(c *gin.Context) {
 	}
 
 	if err := h.authService.Logout(token); err != nil {
+		h.recordAuthEvent(c.Request.Context(), c, repository.AuthAuditLog{
+			Event:     "logout",
+			Username:  getContextString(c, "username"),
+			Role:      getContextString(c, "role"),
+			Success:   false,
+			Detail:    err.Error(),
+			IPAddress: c.ClientIP(),
+			UserAgent: c.GetHeader("User-Agent"),
+		})
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
+
+	h.recordAuthEvent(c.Request.Context(), c, repository.AuthAuditLog{
+		Event:     "logout",
+		Username:  getContextString(c, "username"),
+		Role:      getContextString(c, "role"),
+		Success:   true,
+		Detail:    "logout berhasil",
+		IPAddress: c.ClientIP(),
+		UserAgent: c.GetHeader("User-Agent"),
+	})
 	c.JSON(http.StatusOK, gin.H{"message": "logout berhasil"})
+}
+
+func (h *Handler) recordAuthEvent(ctx context.Context, c *gin.Context, entry repository.AuthAuditLog) {
+	if h.authAuditRepo == nil {
+		return
+	}
+	_ = h.authAuditRepo.Create(ctx, entry)
+}
+
+func getContextString(c *gin.Context, key string) string {
+	value, exists := c.Get(key)
+	if !exists {
+		return ""
+	}
+	text, _ := value.(string)
+	return text
 }
 
 func (h *Handler) SeedAdmin(c *gin.Context) {
@@ -304,4 +389,25 @@ func (h *Handler) GetLowStock(c *gin.Context) {
 func (h *Handler) CreateSupplier(c *gin.Context) {
 	// Placeholder endpoint supplier, siap dipindahkan ke service/repository saat modul supplier diimplementasikan.
 	c.JSON(http.StatusCreated, gin.H{"message": "supplier berhasil ditambahkan"})
+}
+
+func (h *Handler) GetAuthAuditLogs(c *gin.Context) {
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+
+	logs, total, err := h.authAuditRepo.List(c.Request.Context(), repository.AuthAuditFilter{
+		Event:    c.Query("event"),
+		Username: c.Query("username"),
+		DateFrom: c.Query("date_from"),
+		DateTo:   c.Query("date_to"),
+		Page:     page,
+		Limit:    limit,
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.Header("X-Total-Count", strconv.Itoa(total))
+	c.JSON(http.StatusOK, logs)
 }

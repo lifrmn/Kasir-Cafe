@@ -32,3 +32,15 @@ export type Report = {
   bulanan: ReportPeriod;
   tahunan: ReportPeriod;
 };
+
+export type AuthAuditLog = {
+  id: number;
+  event: "login" | "refresh" | "logout";
+  username: string;
+  role: string;
+  success: boolean;
+  ip_address: string;
+  user_agent: string;
+  detail: string;
+  created_at: string;
+};

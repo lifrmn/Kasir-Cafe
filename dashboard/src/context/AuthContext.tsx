@@ -10,7 +10,7 @@ type AuthContextValue = {
   auth: AuthState | null;
   isAuthenticated: boolean;
   login: (username: string, password: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -42,7 +42,12 @@ export function AuthProvider({ children }: PropsWithChildren) {
         localStorage.setItem("pos_role", nextAuth.role);
         setAuth(nextAuth);
       },
-      logout: () => {
+      logout: async () => {
+        try {
+          await api.post("/logout");
+        } catch {
+          // Keep client logout resilient even if backend token already invalid.
+        }
         localStorage.removeItem("pos_token");
         localStorage.removeItem("pos_role");
         setAuth(null);
