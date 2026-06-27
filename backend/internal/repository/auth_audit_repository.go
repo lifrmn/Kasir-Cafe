@@ -225,7 +225,7 @@ func (r *authAuditRepository) Summary(ctx context.Context, days int) (AuthAuditS
 			COUNT(1) FILTER (WHERE event = 'logout'),
 			COUNT(1) FILTER (WHERE event = 'refresh')
 		FROM auth_audit_logs
-		WHERE created_at >= NOW() - ($1 || ' days')::interval`,
+		WHERE created_at >= NOW() - make_interval(days => $1)`,
 		days,
 	).Scan(
 		&summary.TotalEvents,
@@ -242,7 +242,7 @@ func (r *authAuditRepository) Summary(ctx context.Context, days int) (AuthAuditS
 		SELECT date_trunc('day', created_at) AS day, COUNT(1)
 		FROM auth_audit_logs
 		WHERE event = 'login' AND success = false
-		  AND created_at >= NOW() - ($1 || ' days')::interval
+		  AND created_at >= NOW() - make_interval(days => $1)
 		GROUP BY day
 		ORDER BY day DESC`,
 		days,
@@ -267,7 +267,7 @@ func (r *authAuditRepository) Summary(ctx context.Context, days int) (AuthAuditS
 	ipRows, err := r.db.QueryContext(ctx, `
 		SELECT COALESCE(ip_address, ''), COUNT(1) AS total
 		FROM auth_audit_logs
-		WHERE created_at >= NOW() - ($1 || ' days')::interval
+		WHERE created_at >= NOW() - make_interval(days => $1)
 		  AND COALESCE(ip_address, '') <> ''
 		GROUP BY ip_address
 		ORDER BY total DESC
@@ -298,7 +298,7 @@ func (r *authAuditRepository) DeleteOlderThan(ctx context.Context, days int) (in
 
 	result, err := r.db.ExecContext(ctx, `
 		DELETE FROM auth_audit_logs
-		WHERE created_at < NOW() - ($1 || ' days')::interval`,
+		WHERE created_at < NOW() - make_interval(days => $1)`,
 		days,
 	)
 	if err != nil {
