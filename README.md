@@ -60,6 +60,8 @@ Dashboard default di `http://localhost:5173`.
 - `GET /stok`
 - `POST /supplier`
 - `GET /admin/auth-audit-logs` (admin, filter: `event`, `username`, `date_from`, `date_to`, `page`, `limit`)
+- `GET /admin/auth-audit-logs/export` (admin, export CSV sesuai filter: `event`, `username`, `date_from`, `date_to`)
+- `GET /admin/auth-audit-summary` (admin, ringkasan observability, param `days`, default 30)
 
 ## Catatan Arsitektur Android
 ```
@@ -112,6 +114,22 @@ File: `backend/sql/pg_cron_setup.sql`.
 ## Audit Log Auth
 Event auth `login`, `refresh`, `logout` (berhasil/gagal) dicatat ke tabel `auth_audit_logs`.
 Kolom penting: `username`, `role`, `success`, `ip_address`, `user_agent`, `detail`, `created_at`.
+
+### Export CSV
+`GET /admin/auth-audit-logs/export` mengembalikan seluruh baris (sesuai filter) sebagai file CSV
+(`Content-Type: text/csv`, header `Content-Disposition: attachment`).
+
+### Summary Observability
+`GET /admin/auth-audit-summary?days=30` mengembalikan agregat: total event/login/failed login/logout/refresh,
+`failed_login_per_day`, dan `top_ip_addresses` (top 5). Ditampilkan sebagai kartu + bar chart di dashboard admin.
+
+### Retention Policy
+Audit log lebih lama dari `AUDIT_RETENTION_DAYS` (default 180 hari) dihapus otomatis:
+- saat startup API (`cmd/api`), dan
+- pada cleanup job (`cmd/cleanup` / `./scripts/run-cleanup-job.sh`).
+
+Konfigurasi via env `AUDIT_RETENTION_DAYS` (mis. `AUDIT_RETENTION_DAYS=90`).
+Untuk pg_cron, lihat `backend/sql/pg_cron_setup.sql`.
 
 ## Jalankan End-to-End Sekali Jalan
 Pastikan Docker aktif, lalu:
